@@ -20,9 +20,11 @@ Employment (WORKED_AT):
 """
 
 import logging
+from typing import Any
 from urllib.parse import unquote
 
 from fastapi import APIRouter
+from fastapi import Body
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Path
@@ -76,7 +78,7 @@ _422 = {"description": "Request validation failed"}
 )
 @handle_db_errors("get_profile_me")
 async def get_profile_me(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> ProfileResponse:
     """
     Return the authenticated user's profile node plus their total direct
@@ -113,7 +115,7 @@ async def get_profile_me(
 @handle_db_errors("update_profile_me")
 async def update_profile_me(
     body: ProfileUpdateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> ProfileResponse:
     """
     Partially update `name`, `bio`, and/or `location`.
@@ -160,7 +162,7 @@ async def update_profile_me(
 )
 @handle_db_errors("delete_profile_me")
 async def delete_profile_me(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> None:
     """
     Permanently delete the authenticated user's account.
@@ -191,7 +193,7 @@ async def delete_profile_me(
 @handle_db_errors("add_education")
 async def add_education(
     body: EducationRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> MessageResponse:
     """
     Attach a `STUDIED_AT` edge between the current user and an Institution
@@ -232,7 +234,7 @@ async def add_education(
 )
 @handle_db_errors("get_education")
 async def get_education(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[EducationItem]:
     """
     Return all education records for the authenticated user, ordered by
@@ -270,8 +272,8 @@ async def update_education(
         description="The `start_year` of the record to update.",
         examples=[2018],
     ),
-    body: EducationUpdateRequest = ...,
-    current_user: dict = Depends(get_current_user),
+    body: EducationUpdateRequest = Body(...),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> EducationItem:
     """
     Partially update one education record identified by its composite key
@@ -336,7 +338,7 @@ async def delete_education(
         description="The `start_year` of the record to delete.",
         examples=[2018],
     ),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> None:
     """
     Remove the `STUDIED_AT` relationship between the current user and the
@@ -384,7 +386,7 @@ async def delete_education(
 @handle_db_errors("add_employment")
 async def add_employment(
     body: EmploymentRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> MessageResponse:
     """
     Attach a `WORKED_AT` edge between the current user and a Company node,
@@ -422,7 +424,7 @@ async def add_employment(
 )
 @handle_db_errors("get_employment")
 async def get_employment(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[EmploymentItem]:
     """
     Return all employment records for the authenticated user, ordered by
@@ -459,8 +461,8 @@ async def update_employment(
         description="The `start_year` of the record to update.",
         examples=[2022],
     ),
-    body: EmploymentUpdateRequest = ...,
-    current_user: dict = Depends(get_current_user),
+    body: EmploymentUpdateRequest = Body(...),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> EmploymentItem:
     """
     Partially update one employment record identified by its composite key
@@ -526,7 +528,7 @@ async def delete_employment(
         description="The `start_year` of the record to delete.",
         examples=[2022],
     ),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> None:
     """
     Remove the `WORKED_AT` relationship between the current user and the

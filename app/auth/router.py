@@ -67,7 +67,7 @@ def _make_token(user_id: str, cfg: Settings) -> str:
         "sub": user_id,
         "exp": datetime.now(UTC) + timedelta(minutes=cfg.JWT_TTL_MINUTES),
     }
-    return jwt.encode(payload, cfg.JWT_SECRET, algorithm=cfg.JWT_ALGORITHM)
+    return str(jwt.encode(payload, cfg.JWT_SECRET, algorithm=cfg.JWT_ALGORITHM))
 
 
 def _set_auth_cookie(response: Response, token: str, cfg: Settings) -> None:

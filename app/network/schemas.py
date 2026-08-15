@@ -2,7 +2,7 @@
 Pydantic schemas for the network module.
 """
 
-from datetime import date
+from datetime import date  # noqa: TC003
 from enum import StrEnum
 
 from pydantic import BaseModel

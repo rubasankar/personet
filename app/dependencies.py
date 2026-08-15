@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from fastapi import Cookie
 from fastapi import HTTPException
@@ -14,7 +15,9 @@ from app.database import run_query
 logger = logging.getLogger(__name__)
 
 
-async def get_current_user(access_token: str | None = Cookie(default=None)):
+async def get_current_user(
+    access_token: str | None = Cookie(default=None),
+) -> dict[str, Any]:
     """
     FastAPI dependency that resolves the authenticated user from the
     httpOnly ``access_token`` cookie.
@@ -60,4 +63,5 @@ async def get_current_user(access_token: str | None = Cookie(default=None)):
             detail="User not found.",
         )
 
-    return rows[0]["u"]
+    user: dict[str, Any] = rows[0]["u"]
+    return user

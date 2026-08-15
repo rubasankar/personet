@@ -16,9 +16,11 @@ Typical workflow:
 
 import asyncio
 import logging
-from uuid import UUID
+from typing import Any
+from uuid import UUID  # noqa: TC003
 
 from fastapi import APIRouter
+from fastapi import Body
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Path
@@ -99,7 +101,7 @@ async def search_users(
         description="Maximum number of results. Min 1, max 100, default 20.",
         examples=[20],
     ),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[UserSearchItem]:
     """
     Search the user graph by name with optional narrowing filters.
@@ -173,8 +175,8 @@ async def connect(
         description="UUID of the user to connect with. Obtain this from `GET /network/users`.",
         examples=["b2c3d4e5-f6a7-8901-bcde-f12345678901"],
     ),
-    body: ConnectRequest = ...,
-    current_user: dict = Depends(get_current_user),
+    body: ConnectRequest = Body(...),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> MessageResponse:
     """
     Create a **bidirectional** `KNOWS` relationship between the authenticated
@@ -244,7 +246,7 @@ async def connect(
 )
 @handle_db_errors("get_connections")
 async def get_connections(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[ConnectionItem]:
     """
     Return all users you are directly connected to via `KNOWS`, ordered
@@ -287,7 +289,7 @@ async def disconnect(
         description="UUID of the user to disconnect from.",
         examples=["b2c3d4e5-f6a7-8901-bcde-f12345678901"],
     ),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> None:
     """
     Remove the `KNOWS` relationship between you and `target_user_id` in both
@@ -336,8 +338,8 @@ async def update_connection(
         description="UUID of the connected user to update.",
         examples=["b2c3d4e5-f6a7-8901-bcde-f12345678901"],
     ),
-    body: UpdateConnectionRequest = ...,
-    current_user: dict = Depends(get_current_user),
+    body: UpdateConnectionRequest = Body(...),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> ConnectionItem:
     """
     Update `context`, `since`, and/or `closeness` on an existing `KNOWS`
@@ -394,7 +396,7 @@ async def update_connection(
     )
     return ConnectionItem(
         id=target_id,
-        name=target.get("name", ""),
+        name=str(target.get("name", "")),
         location=target.get("location"),
         context=rows[0]["context"],
         since=rows[0].get("since"),
@@ -415,7 +417,7 @@ async def update_connection(
 )
 @handle_db_errors("suggestions")
 async def suggestions(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[SuggestionItem]:
     """
     Return up to **10** people you might know, ranked by `overlap_score`.
@@ -467,7 +469,7 @@ async def find_intro(
         description="UUID of the person you want to reach.",
         examples=["c3d4e5f6-a7b8-9012-cdef-123456789012"],
     ),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> IntroResponse:
     """
     Find the **best route** to reach `target_user_id`, in order of preference:
@@ -530,14 +532,14 @@ async def find_intro(
 
     # Merge and deduplicate intro candidates; prefer knows-based bridges first
     seen_ids: set[str] = set()
-    intro_rows: list[dict] = []
+    intro_rows: list[dict[str, Any]] = []
     for row in list(intro_knows_rows) + list(intro_context_rows):
         if row["intro_id"] not in seen_ids:
             seen_ids.add(row["intro_id"])
             intro_rows.append(row)
     intro_rows = intro_rows[:3]
 
-    def _build_suggestion(row: dict) -> IntroSuggestion:
+    def _build_suggestion(row: dict[str, Any]) -> IntroSuggestion:
         raw_chain = row.get("chain_to_target") or []
         return IntroSuggestion(
             id=row["intro_id"],

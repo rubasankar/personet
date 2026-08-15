@@ -1,6 +1,8 @@
 import logging
+from collections.abc import Callable
 from functools import wraps
 from typing import Any
+from typing import TypeVar
 
 import neo4j.exceptions
 from fastapi import HTTPException
@@ -13,7 +15,10 @@ logger = logging.getLogger(__name__)
 _DB_UNAVAILABLE = "Database is temporarily unavailable. Please try again later."
 
 
-def handle_db_errors(context: str):
+_F = TypeVar("_F", bound=Callable[..., Any])
+
+
+def handle_db_errors(context: str) -> Callable[[_F], _F]:
     """
     Decorator for route handlers: converts Neo4j connectivity/auth errors
     into a 503 Service Unavailable response.
@@ -26,9 +31,9 @@ def handle_db_errors(context: str):
             ...
     """
 
-    def decorator(fn):
+    def decorator(fn: _F) -> _F:
         @wraps(fn)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return await fn(*args, **kwargs)
             except (
@@ -41,7 +46,7 @@ def handle_db_errors(context: str):
                     detail=_DB_UNAVAILABLE,
                 )
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator
 
@@ -61,7 +66,9 @@ async def close_driver() -> None:
         _driver = None
 
 
-async def run_query(cypher: str, params: dict[str, Any] | None = None) -> list[dict]:
+async def run_query(
+    cypher: str, params: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
     if _driver is None:
         msg = (
             "Database driver has not been initialised. "

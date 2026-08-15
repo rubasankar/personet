@@ -29,7 +29,7 @@ _ENV_VALUES: dict[str, str] = {
 
 
 @pytest.mark.asyncio
-async def test_database_connectivity():
+async def test_database_connectivity() -> None:
     """Assert that a query round-trip succeeds with the configured driver."""
     # Temporarily restore real env values, clearing the settings cache so
     # pydantic-settings re-reads them rather than using the fake values set

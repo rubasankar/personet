@@ -12,6 +12,7 @@ import logging
 import logging.config
 import sys
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,9 @@ from app.config import get_settings
 from app.database import close_driver
 from app.database import init_driver
 from app.database import run_query
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 # ---------------------------------------------------------------------------
 # Logging - configure once at import time so every module's logger works.
@@ -75,7 +79,7 @@ async def _apply_schema() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Always reload settings from the environment / .env file on startup
     # so a server restart picks up any credential or config changes.
     get_settings.cache_clear()

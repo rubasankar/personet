@@ -9,6 +9,7 @@ import os
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 from unittest.mock import patch
 
@@ -17,6 +18,9 @@ from fastapi import Depends
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from jose import jwt
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # ---------------------------------------------------------------------------
 # Provide required env vars before any app module is imported so that
@@ -66,7 +70,7 @@ def _make_test_token(user_id: str, expired: bool = False) -> str:
     else:
         exp = datetime.now(UTC) + timedelta(minutes=60)
     payload = {"sub": user_id, "exp": exp}
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return str(jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM))
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +89,9 @@ def _build_test_app() -> FastAPI:
     from app.dependencies import get_current_user as _get_current_user
 
     @test_app.get("/test/me")
-    async def _me(user=Depends(_get_current_user)):
+    async def _me(
+        user: dict[str, object] = Depends(_get_current_user),
+    ) -> dict[str, object]:
         return {"id": user["id"]}
 
     return test_app
@@ -101,7 +107,7 @@ _TEST_ME_PATH = "/test/me"
 
 
 @pytest.fixture
-def client():
+def client() -> Generator[TestClient]:
     """Synchronous TestClient wrapping the lifespan-free test app."""
     with TestClient(_test_app, raise_server_exceptions=True) as c:
         yield c
@@ -113,7 +119,7 @@ def client():
 
 
 class TestSignup:
-    def test_signup_happy_path(self, client):
+    def test_signup_happy_path(self, client: TestClient) -> None:
         """201 + correct JSON body + access_token cookie set."""
         with (
             patch("app.auth.router._pwd_ctx") as mock_ctx,
@@ -133,7 +139,7 @@ class TestSignup:
         assert body["email"] == FAKE_USER_NODE["email"]
         assert "access_token" in resp.cookies
 
-    def test_signup_duplicate_email_returns_409(self, client):
+    def test_signup_duplicate_email_returns_409(self, client: TestClient) -> None:
         """409 when email is already registered."""
         with patch("app.auth.router.run_query", new_callable=AsyncMock) as mock_rq:
             mock_rq.return_value = [{"u": FAKE_USER_NODE}]
@@ -142,30 +148,32 @@ class TestSignup:
         assert resp.status_code == 409, resp.text
         assert "already registered" in resp.json()["detail"]
 
-    def test_signup_invalid_email_returns_422(self, client):
+    def test_signup_invalid_email_returns_422(self, client: TestClient) -> None:
         """422 for a malformed email address."""
         payload = {**VALID_SIGNUP, "email": "not-an-email"}
         resp = client.post(SIGNUP_URL, json=payload)
         assert resp.status_code == 422, resp.text
 
-    def test_signup_short_password_returns_422(self, client):
+    def test_signup_short_password_returns_422(self, client: TestClient) -> None:
         """422 for a password shorter than 8 characters."""
         payload = {**VALID_SIGNUP, "password": "short"}
         resp = client.post(SIGNUP_URL, json=payload)
         assert resp.status_code == 422, resp.text
 
-    def test_signup_empty_name_returns_422(self, client):
+    def test_signup_empty_name_returns_422(self, client: TestClient) -> None:
         """422 for an empty name."""
         payload = {**VALID_SIGNUP, "name": ""}
         resp = client.post(SIGNUP_URL, json=payload)
         assert resp.status_code == 422, resp.text
 
-    def test_signup_missing_fields_returns_422(self, client):
+    def test_signup_missing_fields_returns_422(self, client: TestClient) -> None:
         """422 when the request body is empty."""
         resp = client.post(SIGNUP_URL, json={})
         assert resp.status_code == 422, resp.text
 
-    def test_signup_db_error_on_email_check_returns_503(self, client):
+    def test_signup_db_error_on_email_check_returns_503(
+        self, client: TestClient
+    ) -> None:
         """503 when DB raises ServiceUnavailable during the email check."""
         import neo4j.exceptions
 
@@ -176,7 +184,7 @@ class TestSignup:
         assert resp.status_code == 503, resp.text
         assert "temporarily unavailable" in resp.json()["detail"]
 
-    def test_signup_db_error_on_create_returns_503(self, client):
+    def test_signup_db_error_on_create_returns_503(self, client: TestClient) -> None:
         """503 when DB raises ServiceUnavailable during user creation."""
         import neo4j.exceptions
 
@@ -201,7 +209,7 @@ class TestSignup:
 
 
 class TestLogin:
-    def test_login_happy_path(self, client):
+    def test_login_happy_path(self, client: TestClient) -> None:
         """200 + correct body + access_token cookie set."""
         with (
             patch("app.auth.router._pwd_ctx") as mock_ctx,
@@ -217,7 +225,7 @@ class TestLogin:
         assert body["email"] == FAKE_USER_NODE["email"]
         assert "access_token" in resp.cookies
 
-    def test_login_wrong_email_returns_401(self, client):
+    def test_login_wrong_email_returns_401(self, client: TestClient) -> None:
         """401 when no user is found for the given email."""
         with patch("app.auth.router.run_query", new_callable=AsyncMock) as mock_rq:
             mock_rq.return_value = []
@@ -226,7 +234,7 @@ class TestLogin:
         assert resp.status_code == 401, resp.text
         assert resp.json()["detail"] == "Invalid credentials."
 
-    def test_login_wrong_password_returns_401(self, client):
+    def test_login_wrong_password_returns_401(self, client: TestClient) -> None:
         """401 when the password does not match the stored hash."""
         with (
             patch("app.auth.router._pwd_ctx") as mock_ctx,
@@ -241,7 +249,7 @@ class TestLogin:
         assert resp.status_code == 401, resp.text
         assert resp.json()["detail"] == "Invalid credentials."
 
-    def test_login_db_error_returns_503(self, client):
+    def test_login_db_error_returns_503(self, client: TestClient) -> None:
         """503 when DB raises ServiceUnavailable during login."""
         import neo4j.exceptions
 
@@ -252,7 +260,7 @@ class TestLogin:
         assert resp.status_code == 503, resp.text
         assert "temporarily unavailable" in resp.json()["detail"]
 
-    def test_login_missing_fields_returns_422(self, client):
+    def test_login_missing_fields_returns_422(self, client: TestClient) -> None:
         """422 when required fields are absent."""
         resp = client.post(LOGIN_URL, json={})
         assert resp.status_code == 422, resp.text
@@ -264,13 +272,13 @@ class TestLogin:
 
 
 class TestGetCurrentUser:
-    def test_missing_cookie_returns_401(self, client):
+    def test_missing_cookie_returns_401(self, client: TestClient) -> None:
         """401 when no access_token cookie is present."""
         resp = client.get(_TEST_ME_PATH)
         assert resp.status_code == 401, resp.text
         assert "Not authenticated" in resp.json()["detail"]
 
-    def test_expired_token_returns_401(self, client):
+    def test_expired_token_returns_401(self, client: TestClient) -> None:
         """401 when the JWT is expired."""
         token = _make_test_token("some-user-id", expired=True)
         client.cookies.set("access_token", token)
@@ -280,7 +288,7 @@ class TestGetCurrentUser:
         detail = resp.json()["detail"].lower()
         assert "expired" in detail or "invalid" in detail
 
-    def test_valid_token_unknown_user_returns_401(self, client):
+    def test_valid_token_unknown_user_returns_401(self, client: TestClient) -> None:
         """401 when JWT is valid but the user no longer exists in the DB."""
         token = _make_test_token("nonexistent-user-id")
         client.cookies.set("access_token", token)
@@ -292,7 +300,7 @@ class TestGetCurrentUser:
         assert resp.status_code == 401, resp.text
         assert "not found" in resp.json()["detail"].lower()
 
-    def test_valid_token_known_user_returns_200(self, client):
+    def test_valid_token_known_user_returns_200(self, client: TestClient) -> None:
         """200 when JWT is valid and the user exists in the DB."""
         user_id = FAKE_USER_NODE["id"]
         token = _make_test_token(user_id)
