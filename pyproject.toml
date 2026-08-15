@@ -1,0 +1,35 @@
+[project]
+name = "pernet"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+  "bcrypt>=4.3",
+  "fastapi[standard]>=0.141.1",
+  "neo4j>=6.2",
+  "pydantic[email]>=2.13.4",
+  "pydantic-settings>=2.15",
+  "python-jose[cryptography]>=3.5",
+]
+
+[dependency-groups]
+dev = [
+  "charset-normalizer>=3.5",
+  "detect-secrets>=1.5",
+  "httpx2>=2.10",
+  "mypy>=2.3",
+  "pip-audit>=2.10.1",
+  "pre-commit>=4.6.2",
+  "pytest>=9.1.1",
+  "pytest-asyncio>=0.26",
+  "ruff>=0.16.3",
+]
+
+[tool.pytest]
+ini_options.pythonpath = [ "." ]
+ini_options.asyncio_mode = "auto"
