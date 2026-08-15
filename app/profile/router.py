@@ -2,21 +2,21 @@
 Profile router - full CRUD
 
 User profile:
-  GET    /profile/me                                        - read own profile
-  PATCH  /profile/me                                        - update name / bio / location
-  DELETE /profile/me                                        - delete account + all relationships
+  GET    /profile/me - read own profile
+  PATCH  /profile/me - update name / bio / location
+  DELETE /profile/me - delete account + all relationships
 
 Education (STUDIED_AT):
-  POST   /profile/education                                 - add record
-  GET    /profile/education                                 - list all records
+  POST   /profile/education - add record
+  GET    /profile/education - list all records
   PATCH  /profile/education/{institution_name}/{start_year} - update a record
   DELETE /profile/education/{institution_name}/{start_year} - remove a record
 
 Employment (WORKED_AT):
-  POST   /profile/employment                                - add record
-  GET    /profile/employment                                - list all records
-  PATCH  /profile/employment/{company_name}/{start_year}    - update a record
-  DELETE /profile/employment/{company_name}/{start_year}    - remove a record
+  POST   /profile/employment - add record
+  GET    /profile/employment - list all records
+  PATCH  /profile/employment/{company_name}/{start_year} - update a record
+  DELETE /profile/employment/{company_name}/{start_year} - remove a record
 """
 
 import logging
@@ -265,7 +265,9 @@ async def get_education(
 @handle_db_errors("update_education")
 async def update_education(
     institution_name: str = Path(
-        description="Exact institution name as stored (URL-encoded if it contains spaces).",
+        description=(
+            "Exact institution name as stored (URL-encoded if it contains spaces)."
+        ),
         examples=["University of Cape Town"],
     ),
     start_year: int = Path(

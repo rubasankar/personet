@@ -1,9 +1,4 @@
-## **TODO**
-> - [ ] Fix mypy and ruff lint issues
-
----
-
-# PerNet
+# PerNet / Personet / Personal Network
 
 A graph-native professional networking API and frontend that lets users build a profile, connect with others, and traverse their real-world network to find the shortest path to any person or to employees at a given company.
 

@@ -60,7 +60,8 @@ class LoginRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """Returned on successful signup or login. The JWT is delivered via cookie, not in this body."""
+    """Returned on successful signup or login.
+    The JWT is delivered via cookie, not in this body."""
 
     id: str = Field(description="UUID of the newly authenticated user.")
     name: str = Field(description="Display name.")

@@ -17,10 +17,13 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.auth.router import router as auth_router
 from app.config import get_settings
 from app.database import close_driver
 from app.database import init_driver
 from app.database import run_query
+from app.network.router import router as network_router
+from app.profile.router import router as profile_router
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -57,10 +60,22 @@ logger = logging.getLogger(__name__)
 
 _SCHEMA_DDL = [
     # Unique constraints
-    "CREATE CONSTRAINT user_id_unique IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE",
-    "CREATE CONSTRAINT user_email_unique IF NOT EXISTS FOR (u:User) REQUIRE u.email IS UNIQUE",
-    "CREATE CONSTRAINT institution_id_unique IF NOT EXISTS FOR (i:Institution) REQUIRE i.id IS UNIQUE",
-    "CREATE CONSTRAINT company_id_unique IF NOT EXISTS FOR (c:Company) REQUIRE c.id IS UNIQUE",
+    (
+        "CREATE CONSTRAINT user_id_unique IF NOT EXISTS "
+        "FOR (u:User) REQUIRE u.id IS UNIQUE"
+    ),
+    (
+        "CREATE CONSTRAINT user_email_unique IF NOT EXISTS "
+        "FOR (u:User) REQUIRE u.email IS UNIQUE"
+    ),
+    (
+        "CREATE CONSTRAINT institution_id_unique IF NOT EXISTS "
+        "FOR (i:Institution) REQUIRE i.id IS UNIQUE"
+    ),
+    (
+        "CREATE CONSTRAINT company_id_unique IF NOT EXISTS "
+        "FOR (c:Company) REQUIRE c.id IS UNIQUE"
+    ),
     # Indexes
     "CREATE INDEX institution_name_index IF NOT EXISTS FOR (i:Institution) ON (i.name)",
     "CREATE INDEX company_name_index IF NOT EXISTS FOR (c:Company) ON (c.name)",
@@ -104,9 +119,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 # Application
 # ---------------------------------------------------------------------------
 
-from app.auth.router import router as auth_router
-from app.network.router import router as network_router
-from app.profile.router import router as profile_router
 
 _DESCRIPTION = """
 PerNet is a **graph-native** REST API for building and exploring professional

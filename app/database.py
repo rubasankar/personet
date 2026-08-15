@@ -40,41 +40,41 @@ def handle_db_errors(context: str) -> Callable[[_F], _F]:
                 neo4j.exceptions.ServiceUnavailable,
                 neo4j.exceptions.AuthError,
             ) as exc:
-                logger.error("DB error during %s: %s", context, exc, exc_info=True)
+                logger.exception("DB error during %s", context)
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail=_DB_UNAVAILABLE,
-                )
+                ) from exc
 
         return wrapper  # type: ignore[return-value]
 
     return decorator
 
 
-_driver: AsyncDriver | None = None
+_state: dict[str, AsyncDriver | None] = {"driver": None}
 
 
 async def init_driver(uri: str, user: str, password: str) -> None:
-    global _driver
-    _driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
+    _state["driver"] = AsyncGraphDatabase.driver(uri, auth=(user, password))
 
 
 async def close_driver() -> None:
-    global _driver
-    if _driver is not None:
-        await _driver.close()
-        _driver = None
+    driver = _state["driver"]
+    if driver is not None:
+        await driver.close()
+        _state["driver"] = None
 
 
 async def run_query(
     cypher: str, params: dict[str, Any] | None = None
 ) -> list[dict[str, Any]]:
-    if _driver is None:
+    driver = _state["driver"]
+    if driver is None:
         msg = (
             "Database driver has not been initialised. "
             "Ensure init_driver() is called during application startup."
         )
         raise RuntimeError(msg)
-    async with _driver.session() as session:
+    async with driver.session() as session:
         result = await session.run(cypher, params or {})
         return [record.data() async for record in result]

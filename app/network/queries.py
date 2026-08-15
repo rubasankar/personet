@@ -40,14 +40,19 @@ SEARCH_USERS = """
 MATCH (u:User)
 WHERE u.id <> $my_id
   AND toLower(u.name) CONTAINS toLower($name)
-  AND ($location IS NULL OR (u.location IS NOT NULL AND toLower(u.location) CONTAINS toLower($location)))
+  AND (
+    $location IS NULL
+    OR (u.location IS NOT NULL AND toLower(u.location) CONTAINS toLower($location))
+  )
 WITH u
 OPTIONAL MATCH (u)-[:WORKED_AT]->(c:Company)
 WITH u, collect(DISTINCT c.name) AS companies
-WHERE $company IS NULL OR any(cn IN companies WHERE toLower(cn) CONTAINS toLower($company))
+WHERE $company IS NULL
+   OR any(cn IN companies WHERE toLower(cn) CONTAINS toLower($company))
 OPTIONAL MATCH (u)-[:STUDIED_AT]->(i:Institution)
 WITH u, companies, collect(DISTINCT i.name) AS institutions
-WHERE $institution IS NULL OR any(iname IN institutions WHERE toLower(iname) CONTAINS toLower($institution))
+WHERE $institution IS NULL
+   OR any(iname IN institutions WHERE toLower(iname) CONTAINS toLower($institution))
 RETURN u.id AS id, u.name AS name, u.location AS location,
        companies, institutions
 ORDER BY u.name ASC
@@ -81,7 +86,8 @@ RETURN u.id AS id, u.name AS name
 # ---------------------------------------------------------------------------
 
 GET_SUGGESTIONS = """
-MATCH (me:User {id: $my_id})-[:STUDIED_AT|WORKED_AT]->(shared)<-[:STUDIED_AT|WORKED_AT]-(other:User)
+MATCH (me:User {id: $my_id})-[:STUDIED_AT|WORKED_AT]->(shared)
+  <-[:STUDIED_AT|WORKED_AT]-(other:User)
 WHERE other.id <> $my_id
 WITH me, other,
      collect(DISTINCT shared.name) AS shared_context,
@@ -166,7 +172,9 @@ RETURN r.context AS context, r.since AS since, r.closeness AS closeness
 # ---------------------------------------------------------------------------
 
 FIND_SHORTEST_PATH = """
-MATCH path = shortestPath((me:User {id: $my_id})-[:KNOWS*..7]-(target:User {id: $target_id}))
+MATCH path = shortestPath(
+  (me:User {id: $my_id})-[:KNOWS*..7]-(target:User {id: $target_id})
+)
 RETURN [n IN nodes(path) | {id: n.id, name: n.name}] AS chain, length(path) AS hops
 """
 
@@ -182,7 +190,9 @@ RETURN [n IN nodes(path) | {id: n.id, name: n.name}] AS chain, length(path) AS h
 # ---------------------------------------------------------------------------
 
 FIND_CLOSE_PATH = """
-MATCH path = shortestPath((me:User {id: $my_id})-[:KNOWS*..7]-(target:User {id: $target_id}))
+MATCH path = shortestPath(
+  (me:User {id: $my_id})-[:KNOWS*..7]-(target:User {id: $target_id})
+)
 WHERE all(r IN relationships(path) WHERE r.closeness = 'close')
 RETURN [n IN nodes(path) | {id: n.id, name: n.name}] AS chain, length(path) AS hops
 """
@@ -199,7 +209,8 @@ RETURN [n IN nodes(path) | {id: n.id, name: n.name}] AS chain, length(path) AS h
 # ---------------------------------------------------------------------------
 
 FIND_SHARED_CONTEXT = """
-MATCH (me:User {id: $my_id})-[:WORKED_AT|STUDIED_AT]->(shared)<-[:WORKED_AT|STUDIED_AT]-(target:User {id: $target_id})
+MATCH (me:User {id: $my_id})-[:WORKED_AT|STUDIED_AT]->(shared)
+  <-[:WORKED_AT|STUDIED_AT]-(target:User {id: $target_id})
 RETURN shared.name AS name, labels(shared)[0] AS type
 """
 

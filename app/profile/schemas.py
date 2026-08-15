@@ -4,6 +4,7 @@ Pydantic schemas for the profile module.
 No Cypher here - all queries live in queries.py.
 """
 
+from datetime import UTC
 from datetime import datetime
 from enum import StrEnum
 
@@ -12,7 +13,7 @@ from pydantic import Field
 from pydantic import model_validator
 
 # Current year used for year-range validation
-_CURRENT_YEAR = datetime.now().year
+_CURRENT_YEAR = datetime.now(UTC).year
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +109,10 @@ class EducationRequest(BaseModel):
 
     institution_name: str = Field(
         min_length=1,
-        description="Exact name of the institution. A new Institution node is created if it does not already exist.",
+        description=(
+            "Exact name of the institution. "
+            "A new Institution node is created if it does not already exist."
+        ),
         examples=["University of Cape Town"],
     )
     institution_type: InstitutionType = Field(
@@ -230,7 +234,10 @@ class EmploymentRequest(BaseModel):
 
     company_name: str = Field(
         min_length=1,
-        description="Exact company name. A new Company node is created if it does not already exist.",
+        description=(
+            "Exact company name. "
+            "A new Company node is created if it does not already exist."
+        ),
         examples=["Acme Corp"],
     )
     role: str = Field(

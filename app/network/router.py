@@ -1,6 +1,6 @@
 """
 Network router:
-  GET  /network/users                              - search people by name + optional filters
+  GET  /network/users                              - search people by name/filters
   POST /network/connect/{target_user_id}           - create bidirectional KNOWS (by id)
   DELETE /network/connect/{target_user_id}         - remove a connection
   PATCH /network/connect/{target_user_id}          - update a connection
@@ -66,6 +66,59 @@ _503 = {"description": "Database temporarily unavailable"}
 # ---------------------------------------------------------------------------
 
 
+class UserSearchFilters:
+    """Query-parameter bundle for `GET /network/users` (keeps the endpoint's
+    own argument count within PLR0913/PLR0917 limits)."""
+
+    def __init__(
+        self,
+        name: str = Query(
+            min_length=1,
+            description=(
+                "Partial, case-insensitive name match. "
+                "`ali` matches Alice, Malik, Talia, etc."
+            ),
+            examples=["alice"],
+        ),
+        location: str | None = Query(
+            default=None,
+            description=(
+                "Narrow by location (partial, case-insensitive). "
+                'E.g. `london` matches "London, UK".'
+            ),
+            examples=["london"],
+        ),
+        company: str | None = Query(
+            default=None,
+            description=(
+                "Narrow to people with a `WORKED_AT` edge to a company "
+                "whose name contains this string."
+            ),
+            examples=["acme"],
+        ),
+        institution: str | None = Query(
+            default=None,
+            description=(
+                "Narrow to people with a `STUDIED_AT` edge to an institution "
+                "whose name contains this string."
+            ),
+            examples=["cape town"],
+        ),
+        limit: int = Query(
+            default=20,
+            ge=1,
+            le=100,
+            description="Maximum number of results. Min 1, max 100, default 20.",
+            examples=[20],
+        ),
+    ) -> None:
+        self.name = name
+        self.location = location
+        self.company = company
+        self.institution = institution
+        self.limit = limit
+
+
 @router.get(
     "/users",
     response_model=list[UserSearchItem],
@@ -74,33 +127,7 @@ _503 = {"description": "Database temporarily unavailable"}
 )
 @handle_db_errors("search_users")
 async def search_users(
-    name: str = Query(
-        min_length=1,
-        description="Partial, case-insensitive name match. `ali` matches Alice, Malik, Talia, etc.",
-        examples=["alice"],
-    ),
-    location: str | None = Query(
-        default=None,
-        description='Narrow by location (partial, case-insensitive). E.g. `london` matches "London, UK".',
-        examples=["london"],
-    ),
-    company: str | None = Query(
-        default=None,
-        description="Narrow to people with a `WORKED_AT` edge to a company whose name contains this string.",
-        examples=["acme"],
-    ),
-    institution: str | None = Query(
-        default=None,
-        description="Narrow to people with a `STUDIED_AT` edge to an institution whose name contains this string.",
-        examples=["cape town"],
-    ),
-    limit: int = Query(
-        default=20,
-        ge=1,
-        le=100,
-        description="Maximum number of results. Min 1, max 100, default 20.",
-        examples=[20],
-    ),
+    filters: UserSearchFilters = Depends(),
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[UserSearchItem]:
     """
@@ -133,11 +160,11 @@ async def search_users(
         SEARCH_USERS,
         {
             "my_id": current_user["id"],
-            "name": name,
-            "location": location,
-            "company": company,
-            "institution": institution,
-            "limit": limit,
+            "name": filters.name,
+            "location": filters.location,
+            "company": filters.company,
+            "institution": filters.institution,
+            "limit": filters.limit,
         },
     )
 
@@ -154,7 +181,7 @@ async def search_users(
 
 
 # ---------------------------------------------------------------------------
-# POST /network/connect/{target_user_id}
+# POST /network/connect/<target_user_id>
 # ---------------------------------------------------------------------------
 
 
@@ -172,7 +199,9 @@ async def search_users(
 @handle_db_errors("connect")
 async def connect(
     target_user_id: UUID = Path(
-        description="UUID of the user to connect with. Obtain this from `GET /network/users`.",
+        description=(
+            "UUID of the user to connect with. Obtain this from `GET /network/users`."
+        ),
         examples=["b2c3d4e5-f6a7-8901-bcde-f12345678901"],
     ),
     body: ConnectRequest = Body(...),
@@ -269,7 +298,7 @@ async def get_connections(
 
 
 # ---------------------------------------------------------------------------
-# DELETE /network/connect/{target_user_id}
+# DELETE /network/connect/<target_user_id>
 # ---------------------------------------------------------------------------
 
 
@@ -318,7 +347,7 @@ async def disconnect(
 
 
 # ---------------------------------------------------------------------------
-# PATCH /network/connect/{target_user_id}
+# PATCH /network/connect/<target_user_id>
 # ---------------------------------------------------------------------------
 
 
@@ -449,7 +478,7 @@ async def suggestions(
 
 
 # ---------------------------------------------------------------------------
-# GET /network/intro/{target_user_id}
+# GET /network/intro/<target_user_id>
 # ---------------------------------------------------------------------------
 
 

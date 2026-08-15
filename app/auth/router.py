@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+_INVALID = "Invalid credentials."
 
 # ---------------------------------------------------------------------------
 # Password helpers - wrapping bcrypt directly to avoid the passlib/bcrypt
@@ -49,7 +50,7 @@ class _PwdCtx:
     def verify(password: str, hashed: str) -> bool:
         try:
             return bcrypt.checkpw(password.encode(), hashed.encode())
-        except Exception:
+        except ValueError:
             return False
 
 
@@ -167,7 +168,6 @@ async def login(body: LoginRequest, response: Response) -> TokenResponse:
     password to prevent user-enumeration attacks.
     """
     cfg = get_settings()
-    _INVALID = "Invalid credentials."
 
     # 1. Look up the user by email.
     rows = await run_query(GET_USER_BY_EMAIL, {"email": body.email})

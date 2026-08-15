@@ -39,16 +39,16 @@ async def get_current_user(
             algorithms=[cfg.JWT_ALGORITHM],
         )
         user_id: str | None = payload.get("sub")
-    except ExpiredSignatureError:
+    except ExpiredSignatureError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired. Please log in again.",
-        )
-    except JWTError:
+        ) from exc
+    except JWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token.",
-        )
+        ) from exc
 
     if user_id is None:
         raise HTTPException(

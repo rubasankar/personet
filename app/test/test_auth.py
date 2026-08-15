@@ -13,11 +13,16 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 from unittest.mock import patch
 
+import neo4j.exceptions
 import pytest
 from fastapi import Depends
 from fastapi import FastAPI
+from fastapi import status
 from fastapi.testclient import TestClient
 from jose import jwt
+
+from app.auth.router import router as auth_router
+from app.dependencies import get_current_user as _get_current_user
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -28,8 +33,8 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 os.environ["COGNODB_URI"] = "bolt://localhost:7687"
 os.environ["COGNODB_USER"] = "test_user"
-os.environ["COGNODB_PASSWORD"] = "test_password"
-os.environ["JWT_SECRET"] = "test-secret-key-for-unit-tests"
+os.environ["COGNODB_PASSWORD"] = "test_password"  # noqa: S105
+os.environ["JWT_SECRET"] = "test-secret-key-for-unit-tests"  # noqa: S105
 os.environ["JWT_ALGORITHM"] = "HS256"
 os.environ["JWT_TTL_MINUTES"] = "60"
 
@@ -37,7 +42,7 @@ os.environ["JWT_TTL_MINUTES"] = "60"
 # Constants
 # ---------------------------------------------------------------------------
 
-JWT_SECRET = "test-secret-key-for-unit-tests"
+JWT_SECRET = "test-secret-key-for-unit-tests"  # noqa: S105
 JWT_ALGORITHM = "HS256"
 
 SIGNUP_URL = "/auth/signup"
@@ -63,7 +68,7 @@ FAKE_USER_NODE = {
 }
 
 
-def _make_test_token(user_id: str, expired: bool = False) -> str:
+def _make_test_token(user_id: str, *, expired: bool = False) -> str:
     """Create a JWT signed with the test secret."""
     if expired:
         exp = datetime.now(UTC) - timedelta(minutes=10)
@@ -82,15 +87,11 @@ def _build_test_app() -> FastAPI:
     """Return a FastAPI app with auth + test-me routes but NO lifespan."""
     test_app = FastAPI()
 
-    from app.auth.router import router as auth_router
-
     test_app.include_router(auth_router)
-
-    from app.dependencies import get_current_user as _get_current_user
 
     @test_app.get("/test/me")
     async def _me(
-        user: dict[str, object] = Depends(_get_current_user),
+        user: dict[str, object] = Depends(_get_current_user),  # noqa: B008
     ) -> dict[str, object]:
         return {"id": user["id"]}
 
@@ -132,7 +133,7 @@ class TestSignup:
             ]
             resp = client.post(SIGNUP_URL, json=VALID_SIGNUP)
 
-        assert resp.status_code == 201, resp.text
+        assert resp.status_code == status.HTTP_201_CREATED, resp.text
         body = resp.json()
         assert body["id"] == FAKE_USER_NODE["id"]
         assert body["name"] == FAKE_USER_NODE["name"]
@@ -145,48 +146,46 @@ class TestSignup:
             mock_rq.return_value = [{"u": FAKE_USER_NODE}]
             resp = client.post(SIGNUP_URL, json=VALID_SIGNUP)
 
-        assert resp.status_code == 409, resp.text
+        assert resp.status_code == status.HTTP_409_CONFLICT, resp.text
         assert "already registered" in resp.json()["detail"]
 
     def test_signup_invalid_email_returns_422(self, client: TestClient) -> None:
         """422 for a malformed email address."""
         payload = {**VALID_SIGNUP, "email": "not-an-email"}
         resp = client.post(SIGNUP_URL, json=payload)
-        assert resp.status_code == 422, resp.text
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, resp.text
 
     def test_signup_short_password_returns_422(self, client: TestClient) -> None:
         """422 for a password shorter than 8 characters."""
         payload = {**VALID_SIGNUP, "password": "short"}
         resp = client.post(SIGNUP_URL, json=payload)
-        assert resp.status_code == 422, resp.text
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, resp.text
 
     def test_signup_empty_name_returns_422(self, client: TestClient) -> None:
         """422 for an empty name."""
         payload = {**VALID_SIGNUP, "name": ""}
         resp = client.post(SIGNUP_URL, json=payload)
-        assert resp.status_code == 422, resp.text
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, resp.text
 
     def test_signup_missing_fields_returns_422(self, client: TestClient) -> None:
         """422 when the request body is empty."""
         resp = client.post(SIGNUP_URL, json={})
-        assert resp.status_code == 422, resp.text
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, resp.text
 
     def test_signup_db_error_on_email_check_returns_503(
         self, client: TestClient
     ) -> None:
         """503 when DB raises ServiceUnavailable during the email check."""
-        import neo4j.exceptions
 
         with patch("app.auth.router.run_query", new_callable=AsyncMock) as mock_rq:
             mock_rq.side_effect = neo4j.exceptions.ServiceUnavailable("db down")
             resp = client.post(SIGNUP_URL, json=VALID_SIGNUP)
 
-        assert resp.status_code == 503, resp.text
+        assert resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE, resp.text
         assert "temporarily unavailable" in resp.json()["detail"]
 
     def test_signup_db_error_on_create_returns_503(self, client: TestClient) -> None:
         """503 when DB raises ServiceUnavailable during user creation."""
-        import neo4j.exceptions
 
         with (
             patch("app.auth.router._pwd_ctx") as mock_ctx,
@@ -199,7 +198,7 @@ class TestSignup:
             ]
             resp = client.post(SIGNUP_URL, json=VALID_SIGNUP)
 
-        assert resp.status_code == 503, resp.text
+        assert resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE, resp.text
         assert "temporarily unavailable" in resp.json()["detail"]
 
 
@@ -219,7 +218,7 @@ class TestLogin:
             mock_rq.return_value = [{"u": FAKE_USER_NODE}]
             resp = client.post(LOGIN_URL, json=VALID_LOGIN)
 
-        assert resp.status_code == 200, resp.text
+        assert resp.status_code == status.HTTP_200_OK, resp.text
         body = resp.json()
         assert body["id"] == FAKE_USER_NODE["id"]
         assert body["email"] == FAKE_USER_NODE["email"]
@@ -231,7 +230,7 @@ class TestLogin:
             mock_rq.return_value = []
             resp = client.post(LOGIN_URL, json=VALID_LOGIN)
 
-        assert resp.status_code == 401, resp.text
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED, resp.text
         assert resp.json()["detail"] == "Invalid credentials."
 
     def test_login_wrong_password_returns_401(self, client: TestClient) -> None:
@@ -246,24 +245,23 @@ class TestLogin:
                 LOGIN_URL, json={**VALID_LOGIN, "password": "wrongpassword"}
             )
 
-        assert resp.status_code == 401, resp.text
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED, resp.text
         assert resp.json()["detail"] == "Invalid credentials."
 
     def test_login_db_error_returns_503(self, client: TestClient) -> None:
         """503 when DB raises ServiceUnavailable during login."""
-        import neo4j.exceptions
 
         with patch("app.auth.router.run_query", new_callable=AsyncMock) as mock_rq:
             mock_rq.side_effect = neo4j.exceptions.ServiceUnavailable("db down")
             resp = client.post(LOGIN_URL, json=VALID_LOGIN)
 
-        assert resp.status_code == 503, resp.text
+        assert resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE, resp.text
         assert "temporarily unavailable" in resp.json()["detail"]
 
     def test_login_missing_fields_returns_422(self, client: TestClient) -> None:
         """422 when required fields are absent."""
         resp = client.post(LOGIN_URL, json={})
-        assert resp.status_code == 422, resp.text
+        assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, resp.text
 
 
 # ===========================================================================
@@ -275,7 +273,7 @@ class TestGetCurrentUser:
     def test_missing_cookie_returns_401(self, client: TestClient) -> None:
         """401 when no access_token cookie is present."""
         resp = client.get(_TEST_ME_PATH)
-        assert resp.status_code == 401, resp.text
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED, resp.text
         assert "Not authenticated" in resp.json()["detail"]
 
     def test_expired_token_returns_401(self, client: TestClient) -> None:
@@ -284,7 +282,7 @@ class TestGetCurrentUser:
         client.cookies.set("access_token", token)
         resp = client.get(_TEST_ME_PATH)
         client.cookies.clear()
-        assert resp.status_code == 401, resp.text
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED, resp.text
         detail = resp.json()["detail"].lower()
         assert "expired" in detail or "invalid" in detail
 
@@ -297,7 +295,7 @@ class TestGetCurrentUser:
             resp = client.get(_TEST_ME_PATH)
         client.cookies.clear()
 
-        assert resp.status_code == 401, resp.text
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED, resp.text
         assert "not found" in resp.json()["detail"].lower()
 
     def test_valid_token_known_user_returns_200(self, client: TestClient) -> None:
@@ -310,5 +308,5 @@ class TestGetCurrentUser:
             resp = client.get(_TEST_ME_PATH)
         client.cookies.clear()
 
-        assert resp.status_code == 200, resp.text
+        assert resp.status_code == status.HTTP_200_OK, resp.text
         assert resp.json()["id"] == user_id

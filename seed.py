@@ -140,26 +140,41 @@ def hash_password(plain: str) -> str:
 CONSTRAINTS = [
     (
         "unique_user_id",
-        "CREATE CONSTRAINT unique_user_id IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE",
+        (
+            "CREATE CONSTRAINT unique_user_id IF NOT EXISTS "
+            "FOR (u:User) REQUIRE u.id IS UNIQUE"
+        ),
     ),
     (
         "unique_user_email",
-        "CREATE CONSTRAINT unique_user_email IF NOT EXISTS FOR (u:User) REQUIRE u.email IS UNIQUE",
+        (
+            "CREATE CONSTRAINT unique_user_email IF NOT EXISTS "
+            "FOR (u:User) REQUIRE u.email IS UNIQUE"
+        ),
     ),
     (
         "unique_institution_id",
-        "CREATE CONSTRAINT unique_institution_id IF NOT EXISTS FOR (i:Institution) REQUIRE i.id IS UNIQUE",
+        (
+            "CREATE CONSTRAINT unique_institution_id IF NOT EXISTS "
+            "FOR (i:Institution) REQUIRE i.id IS UNIQUE"
+        ),
     ),
     (
         "unique_company_id",
-        "CREATE CONSTRAINT unique_company_id IF NOT EXISTS FOR (c:Company) REQUIRE c.id IS UNIQUE",
+        (
+            "CREATE CONSTRAINT unique_company_id IF NOT EXISTS "
+            "FOR (c:Company) REQUIRE c.id IS UNIQUE"
+        ),
     ),
 ]
 
 INDEXES = [
     (
         "idx_institution_name",
-        "CREATE INDEX idx_institution_name IF NOT EXISTS FOR (i:Institution) ON (i.name)",
+        (
+            "CREATE INDEX idx_institution_name IF NOT EXISTS "
+            "FOR (i:Institution) ON (i.name)"
+        ),
     ),
     (
         "idx_company_name",
@@ -408,7 +423,7 @@ USERS = [
     },
 ]
 
-# (user_idx, institution_idx, degree, department, start_year, end_year)
+# Each entry: user_idx, institution_idx, degree, department, start_year, end_year
 STUDIED_AT_RELS = [
     (0, 0, "PhD", "Computer Science", 2012, 2018),
     (1, 1, "BS", "Computer Science", 2010, 2014),
@@ -447,7 +462,7 @@ STUDIED_AT_RELS = [
     (34, 6, "MS", "Blockchain", 2018, 2020),
 ]
 
-# (user_idx, company_idx, role, start_year, end_year, is_current)
+# Each entry: user_idx, company_idx, role, start_year, end_year, is_current
 WORKED_AT_RELS = [
     (0, 0, "Research Scientist", 2018, None, True),
     (1, 1, "Senior Software Engineer", 2014, 2019, False),
@@ -495,8 +510,8 @@ WORKED_AT_RELS = [
     (34, 6, "Blockchain Developer", 2020, None, True),
 ]
 
-# (user_a_idx, user_b_idx, context, since, closeness)
-# Chain: Alice(0)->Bob(1)->Ethan(30)->Ivan(34) = 3 hops ✓
+# Each entry: user_a_idx, user_b_idx, context, since, closeness
+# Chain from Alice (index 0) through Bob and Ethan to Ivan (index 34) yields 3 hops.
 KNOWS_RELS = [
     (0, 1, "colleague", "2018-06-01", "close"),
     (1, 2, "classmate", "2015-09-01", "close"),
@@ -568,7 +583,8 @@ async def run_constraints() -> None:
         try:
             await run_query(cypher)
             log.debug("  index ready: %s", name)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - best-effort DDL, driver
+            # raises varied/undocumented error types across backends.
             log.warning("  index skipped (%s): %s", name, exc)
     log.info("Schema DDL done.")
 
@@ -655,7 +671,9 @@ async def run_studied_at(user_ids: list[str], institution_ids: list[str]) -> Non
             """
             MATCH (u:User {id: $user_id})
             MATCH (i:Institution {id: $inst_id})
-            MERGE (u)-[r:STUDIED_AT {degree: $degree, department: $department, start_year: $start_year}]->(i)
+            MERGE (u)-[r:STUDIED_AT {
+                degree: $degree, department: $department, start_year: $start_year
+            }]->(i)
             ON CREATE SET r.end_year = $end_year
             """,
             {
@@ -700,8 +718,12 @@ async def run_knows(user_ids: list[str]) -> None:
         await run_query(
             """
             MATCH (a:User {id: $user_a}), (b:User {id: $user_b})
-            MERGE (a)-[:KNOWS {context: $context, since: $since, closeness: $closeness}]->(b)
-            MERGE (b)-[:KNOWS {context: $context, since: $since, closeness: $closeness}]->(a)
+            MERGE (a)-[:KNOWS {
+                context: $context, since: $since, closeness: $closeness
+            }]->(b)
+            MERGE (b)-[:KNOWS {
+                context: $context, since: $since, closeness: $closeness
+            }]->(a)
             """,
             {
                 "user_a": user_ids[a_idx],
@@ -714,9 +736,13 @@ async def run_knows(user_ids: list[str]) -> None:
     log.info("%d directed KNOWS edges ready.", len(rels) * 2)
 
 
+IVAN_USER_INDEX = 34
+EXPECTED_MIN_HOPS = 3
+
+
 async def verify_hop_distance(user_ids: list[str]) -> None:
-    """Verify Alice(0) -> Ivan(34) is ≥ 3 hops when both are in the seeded slice."""
-    if len(user_ids) <= 34:
+    """Verify Alice(0) -> Ivan(34) is >= 3 hops when both are in the seeded slice."""
+    if len(user_ids) <= IVAN_USER_INDEX:
         log.debug("Skipping hop verification - fewer than 35 users seeded.")
         return
 
@@ -727,11 +753,11 @@ async def verify_hop_distance(user_ids: list[str]) -> None:
         )
         RETURN length(path) AS hops
         """,
-        {"user_a": user_ids[0], "user_b": user_ids[34]},
+        {"user_a": user_ids[0], "user_b": user_ids[IVAN_USER_INDEX]},
     )
     if rows:
         hops = rows[0]["hops"]
-        if hops >= 3:
+        if hops >= EXPECTED_MIN_HOPS:
             log.info("Hop verification passed: Alice -> Ivan = %d hops.", hops)
         else:
             log.warning(
@@ -746,19 +772,109 @@ async def verify_hop_distance(user_ids: list[str]) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _resolve_steps(only: list[str]) -> set[str]:
+    if "none" in only:
+        return set()
+    if "all" in only:
+        return set(_ALL_STEPS)
+    return set(only)
+
+
+async def _resolve_institution_ids(steps: set[str]) -> list[str]:
+    if "institutions" in steps:
+        return await run_institutions()
+    if steps & {"studied_at"}:
+        rows = await run_query(
+            "MATCH (i:Institution) RETURN i.id AS id ORDER BY i.name"
+        )
+        ids = [r["id"] for r in rows]
+        log.debug("Loaded %d existing institution IDs.", len(ids))
+        return ids
+    return []
+
+
+async def _resolve_company_ids(steps: set[str]) -> list[str]:
+    if "companies" in steps:
+        return await run_companies()
+    if steps & {"worked_at"}:
+        rows = await run_query("MATCH (c:Company) RETURN c.id AS id ORDER BY c.name")
+        ids = [r["id"] for r in rows]
+        log.debug("Loaded %d existing company IDs.", len(ids))
+        return ids
+    return []
+
+
+async def _resolve_user_ids(
+    steps: set[str], args: argparse.Namespace, password_hash: str
+) -> list[str]:
+    if "users" in steps:
+        return await run_users(args.users, password_hash)
+    if steps & {"studied_at", "worked_at", "knows"}:
+        rows = await run_query(
+            "MATCH (u:User) RETURN u.id AS id, u.email AS email "
+            "ORDER BY u.created_at, u.email"
+        )
+        ids = [r["id"] for r in rows]
+        log.debug("Loaded %d existing user IDs.", len(ids))
+        return ids
+    return []
+
+
+async def _run_relationship_steps(
+    steps: set[str],
+    user_ids: list[str],
+    institution_ids: list[str],
+    company_ids: list[str],
+) -> None:
+    if "studied_at" in steps:
+        if institution_ids and user_ids:
+            await run_studied_at(user_ids, institution_ids)
+        else:
+            log.warning("Skipping studied_at - institution or user IDs not available.")
+
+    if "worked_at" in steps:
+        if company_ids and user_ids:
+            await run_worked_at(user_ids, company_ids)
+        else:
+            log.warning("Skipping worked_at - company or user IDs not available.")
+
+    if "knows" in steps:
+        if user_ids:
+            await run_knows(user_ids)
+        else:
+            log.warning("Skipping knows - user IDs not available.")
+
+    if "knows" in steps or "users" in steps:
+        await verify_hop_distance(user_ids)
+
+
+async def _run_seed(steps: set[str], args: argparse.Namespace) -> None:
+    log.info("Steps to run: %s", ", ".join(sorted(steps)))
+
+    # Pre-hash password once (bcrypt is slow by design).
+    password_hash = hash_password(args.password)
+
+    if "constraints" in steps:
+        await run_constraints()
+
+    # Node IDs are needed to wire up relationships; fetch from DB if we
+    # skipped the seeding step so --only relationships still works.
+    institution_ids = await _resolve_institution_ids(steps)
+    company_ids = await _resolve_company_ids(steps)
+    user_ids = await _resolve_user_ids(steps, args, password_hash)
+
+    await _run_relationship_steps(steps, user_ids, institution_ids, company_ids)
+
+    log.info("Seeding complete.")
+
+
 async def main() -> None:
     args = _parse_args()
 
     # Apply requested log level.
     logging.getLogger().setLevel(args.log_level)
 
-    # Resolve the active step set.
-    if "none" in args.only:
-        steps: set[str] = set()
-    elif "all" in args.only:
-        steps = set(_ALL_STEPS)
-    else:
-        steps = set(args.only)
+    steps = _resolve_steps(args.only)
 
     cfg = get_settings()
     log.info("Connecting to %s ...", cfg.COGNODB_URI)
@@ -772,71 +888,7 @@ async def main() -> None:
             log.info("No steps selected - nothing to seed.")
             return
 
-        log.info("Steps to run: %s", ", ".join(sorted(steps)))
-
-        # Pre-hash password once (bcrypt is slow by design).
-        password_hash = hash_password(args.password)
-
-        # Node IDs are needed to wire up relationships; fetch from DB if we
-        # skipped the seeding step so --only relationships still works.
-        institution_ids: list[str] = []
-        company_ids: list[str] = []
-        user_ids: list[str] = []
-
-        if "constraints" in steps:
-            await run_constraints()
-
-        if "institutions" in steps:
-            institution_ids = await run_institutions()
-        elif steps & {"studied_at"}:
-            rows = await run_query(
-                "MATCH (i:Institution) RETURN i.id AS id ORDER BY i.name"
-            )
-            institution_ids = [r["id"] for r in rows]
-            log.debug("Loaded %d existing institution IDs.", len(institution_ids))
-
-        if "companies" in steps:
-            company_ids = await run_companies()
-        elif steps & {"worked_at"}:
-            rows = await run_query(
-                "MATCH (c:Company) RETURN c.id AS id ORDER BY c.name"
-            )
-            company_ids = [r["id"] for r in rows]
-            log.debug("Loaded %d existing company IDs.", len(company_ids))
-
-        if "users" in steps:
-            user_ids = await run_users(args.users, password_hash)
-        elif steps & {"studied_at", "worked_at", "knows"}:
-            rows = await run_query(
-                "MATCH (u:User) RETURN u.id AS id, u.email AS email ORDER BY u.created_at, u.email"
-            )
-            user_ids = [r["id"] for r in rows]
-            log.debug("Loaded %d existing user IDs.", len(user_ids))
-
-        if "studied_at" in steps:
-            if institution_ids and user_ids:
-                await run_studied_at(user_ids, institution_ids)
-            else:
-                log.warning(
-                    "Skipping studied_at - institution or user IDs not available."
-                )
-
-        if "worked_at" in steps:
-            if company_ids and user_ids:
-                await run_worked_at(user_ids, company_ids)
-            else:
-                log.warning("Skipping worked_at - company or user IDs not available.")
-
-        if "knows" in steps:
-            if user_ids:
-                await run_knows(user_ids)
-            else:
-                log.warning("Skipping knows - user IDs not available.")
-
-        if "knows" in steps or "users" in steps:
-            await verify_hop_distance(user_ids)
-
-        log.info("Seeding complete.")
+        await _run_seed(steps, args)
 
     except Exception as exc:
         log.critical("Seeding failed: %s", exc, exc_info=True)

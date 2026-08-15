@@ -64,3 +64,4 @@ lint.ignore = [
 lint.isort.force-single-line = true
 [lint.per-file-ignores]
 "manage.py" = ["PLC0415"]
+"app/*/router.py" = ["B008"]

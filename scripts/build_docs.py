@@ -13,7 +13,7 @@ import pathlib
 # Load the spec
 # ---------------------------------------------------------------------------
 
-with open("openapi.json", encoding="utf-8") as f:
+with open("openapi.json", encoding="utf-8") as f:  # noqa: PTH123
     spec = json.load(f)
 
 spec_json = json.dumps(spec, ensure_ascii=False)
@@ -46,7 +46,8 @@ HTML = f"""\
           colors: {{ primary: {{ main: "#0066cc" }} }},
           typography: {{
             fontSize: "15px",
-            fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            fontFamily:
+            "Inter, -apple-system,BlinkMacSystemFont, 'Segoe UI', sans-serif",
             headings: {{ fontFamily: "Inter, sans-serif" }},
             code: {{ fontSize: "13px" }}
           }},
@@ -70,6 +71,6 @@ HTML = f"""\
 # Write output
 # ---------------------------------------------------------------------------
 
-out = pathlib.Path("docs/api.html")
+out = pathlib.Path("../docs/api.html")
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(HTML, encoding="utf-8")

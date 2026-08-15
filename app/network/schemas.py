@@ -95,12 +95,17 @@ class UserSearchItem(BaseModel):
     """One person returned by GET /network/users."""
 
     id: str = Field(
-        description="User UUID. Use this as `target_user_id` in connect and path endpoints.",
+        description=(
+            "User UUID. Use this as `target_user_id` in connect and path endpoints."
+        ),
     )
     name: str = Field(description="Display name.")
     location: str | None = Field(default=None, description="City or region, if set.")
     companies: list[str] = Field(
-        description="Companies this person has worked at (used to confirm you have the right person).",
+        description=(
+            "Companies this person has worked at "
+            "(used to confirm you have the right person)."
+        ),
     )
     institutions: list[str] = Field(
         description="Institutions this person has studied at.",
@@ -159,7 +164,10 @@ class SuggestionItem(BaseModel):
         description="Names of companies or institutions you both have in common.",
     )
     overlap_score: int = Field(
-        description="Number of shared companies/institutions - higher means stronger suggestion.",
+        description=(
+            "Number of shared companies/institutions - "
+            "higher means stronger suggestion."
+        ),
     )
 
     model_config = {
@@ -214,8 +222,10 @@ class IntroSuggestion(BaseModel):
     shared_node_type: str = Field(description="'Company' or 'Institution'.")
     reach_type: str = Field(
         description=(
-            "'knows' = you already know this person (via KNOWS chain), they share context with target. "
-            "'context' = you share a company/institution with them, they have a KNOWS path to target."
+            "'knows' = you already know this person (via KNOWS chain), "
+            "they share context with target. "
+            "'context' = you share a company/institution with them, "
+            "they have a KNOWS path to target."
         )
     )
     chain_to_target: list[PathNode] = Field(
@@ -243,13 +253,18 @@ class IntroResponse(BaseModel):
     # Always populated when you share a company/institution with the target
     shared_context: list[str] = Field(
         default=[],
-        description="Names of shared companies/institutions (non-empty when type=direct_context or alongside knows_path).",
+        description=(
+            "Names of shared companies/institutions "
+            "(non-empty when type=direct_context or alongside knows_path)."
+        ),
     )
 
     # Populated when a KNOWS chain exists
     chain: list[PathNode] = Field(
         default=[],
-        description="Ordered list of users in the KNOWS path (populated when type=knows_path).",
+        description=(
+            "Ordered list of users in the KNOWS path (populated when type=knows_path)."
+        ),
     )
     hops: int = Field(
         default=0,
@@ -263,5 +278,7 @@ class IntroResponse(BaseModel):
     # Populated when no KNOWS path exists but bridge people were found
     suggestions: list[IntroSuggestion] = Field(
         default=[],
-        description="Bridge people to connect with first (populated when type=suggested_intro).",
+        description=(
+            "Bridge people to connect with first(populated when type=suggested_intro)."
+        ),
     )
