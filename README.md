@@ -1,10 +1,6 @@
 ## **TODO**
-> - [ ] Deploy backend + frontend, add live demo link (Section 11)
-> - [ ] Record screen walkthrough, add link (Section 11)
-> - [ ] Take and add screenshots (Section 10)
-> - [ ] Double-check `.env` is in `.gitignore` and no credentials are committed anywhere in git history
-> - [ ] Confirm CognoDB instance is still running (keep it alive until you hear back from Wexa)
 > - [ ] Fix mypy and ruff lint issues
+
 ---
 
 # PerNet
@@ -178,7 +174,7 @@ Go to [https://console.cognodb.com/signup](https://console.cognodb.com/signup) t
 
 ```bash
 git clone <repo-url>
-cd PerNet
+cd personet
 ```
 
 Create a `.env` file in the project root (this file is listed in `.gitignore` - never commit it):
@@ -432,31 +428,50 @@ PerNet/
 
 ## Screenshots
 
-<!-- TODO: add screenshot -->
 ### Signup / Login
-`TODO: screenshot-signup.png`
 
-<!-- TODO: add screenshot -->
+![Signup page](docs/images/signup_page.png)
+![Login page](docs/images/login_page.png)
+
 ### Dashboard / Suggestions
-`TODO: screenshot-dashboard.png`
 
-<!-- TODO: add screenshot -->
-### Search - Find path to a person
-`TODO: screenshot-search-path.png`
+![Dashboard](docs/images/dashboard.png)
 
-<!-- TODO: add screenshot -->
-### Search - Find people at a company
-`TODO: screenshot-search-company.png`
+### Connections
+
+![Connections](docs/images/connection.png)
+
+### Search - Find people
+
+![Search people](docs/images/search_people.png)
+![Search result](docs/images/search_result.png)
+![Search result detailed](docs/images/search_result_detailed.png)
+
+### Search - Filtered (with no results)
+
+![Filtered search](docs/images/filtered_search.png)
+![Filtered search no result](docs/images/filtered_search_no-result.png)
+
+### DB-Graph
+![DB Graph](docs/images/db_graph.png)
+
+### Find path to a person
+
+![Path](docs/images/path.png)
 
 ---
 
 ## Live Demo
 
-TODO: hosted demo URL (deploy backend + frontend, then paste link here)
+[Frontend](https://personet-kappa.vercel.app/)
+
+[Backend](https://pernet-api.onrender.com/)
+
+[Docs](https://pernet-api.onrender.com/docs)
 
 ## Screen Recording
 
-TODO: link to screen recording (Loom, YouTube unlisted, or similar) walking through signup -> profile build -> search
+[screen recoding](https://drive.google.com/file/d/19QcrrVrZ_hvkNsBZnDIfREXT1v4ne8Sk/view?usp=sharing)
 
 ---
 
